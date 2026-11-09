@@ -1,0 +1,79 @@
+
+# Python cache
+**/__pycache__/
+*.py[cod]
+
+# Python virtual environments
+**/venv/
+**/.venv/
+**/env/
+
+# Environment variables and secrets
+**/.env
+**/.env.*
+!**/.env.example
+
+# Node dependencies
+**/node_modules/
+**/dist/
+**/build/
+
+# Database files
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+
+# IDE files
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Uploaded files
+**/uploads/
+
+# AI model weights
+*.pt
+*.pth
+*.bin
+*.safetensors
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Backend
+backend/venv/
+backend/.env
+
+# Frontend
+frontend/node_modules/
+
+# Python cache
+**/__pycache__/
+*.py[cod]
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Build files
+frontend/dist/
+
+# Environment and secrets
+.env
+.env.*
+
+# IDE files
+.vscode/
+.idea/
+
+# Logs
+*.log
