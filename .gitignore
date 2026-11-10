@@ -77,3 +77,8 @@ frontend/dist/
 
 # Logs
 *.log
+
+# Ollama proxy
+ollama-proxy/venv/
+ollama-proxy/__pycache__/
+ollama-proxy/.env

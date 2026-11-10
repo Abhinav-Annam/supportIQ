@@ -1,34 +1,79 @@
 
 import uuid
-import json
-import urllib.request
-import urllib.error
-
 from datetime import datetime
+from typing import Literal
+
+from pydantic import BaseModel, Field
+from langchain_ollama import ChatOllama
+
+from config import (
+    OLLAMA_MODEL,
+    OLLAMA_BASE_URL,
+    OLLAMA_PROXY_TOKEN
+)
+
 from database.connection import get_connection
 
 
+# =====================================
+# SENTIMENT RESPONSE MODEL
+# =====================================
+
+class FeedbackSentimentResult(BaseModel):
+
+    sentiment: Literal[
+        "Positive",
+        "Neutral",
+        "Negative"
+    ]
+
+    reason: str = Field(
+        description="Short explanation of the customer feedback sentiment"
+    )
+
+
+# =====================================
+# FEEDBACK AGENT
+# =====================================
+
 class FeedbackAgent:
 
-    OLLAMA_URL = "http://localhost:11434/api/generate"
-    OLLAMA_MODEL = "llama3.2"
-
     def __init__(self):
+
+        # Connect to Ollama through the secure proxy
+        self.llm = ChatOllama(
+            model=OLLAMA_MODEL,
+            base_url=OLLAMA_BASE_URL,
+            temperature=0,
+            client_kwargs={
+                "headers": {
+                    "Authorization": f"Bearer {OLLAMA_PROXY_TOKEN}"
+                }
+            }
+        ).with_structured_output(
+            FeedbackSentimentResult,
+            method="json_schema"
+        )
+
+        # Initialize feedback database
         self.create_table()
 
-    # --------------------------------
+
+    # =================================
     # CREATE DATABASE TABLE
-    # --------------------------------
+    # =================================
 
     def create_table(self):
 
         connection = get_connection()
 
         try:
+
             cursor = connection.cursor()
 
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS feedback (
+
                     feedback_id TEXT PRIMARY KEY,
                     customer_name TEXT NOT NULL,
                     order_id TEXT,
@@ -38,6 +83,7 @@ class FeedbackAgent:
                     created_at TEXT NOT NULL,
                     sentiment TEXT DEFAULT 'Pending',
                     sentiment_reason TEXT DEFAULT ''
+
                 )
             """)
 
@@ -45,16 +91,19 @@ class FeedbackAgent:
             cursor.execute("PRAGMA table_info(feedback)")
 
             columns = [
-                row["name"] for row in cursor.fetchall()
+                row["name"]
+                for row in cursor.fetchall()
             ]
 
             if "sentiment" not in columns:
+
                 cursor.execute("""
                     ALTER TABLE feedback
                     ADD COLUMN sentiment TEXT DEFAULT 'Pending'
                 """)
 
             if "sentiment_reason" not in columns:
+
                 cursor.execute("""
                     ALTER TABLE feedback
                     ADD COLUMN sentiment_reason TEXT DEFAULT ''
@@ -65,90 +114,48 @@ class FeedbackAgent:
         finally:
             connection.close()
 
-    # --------------------------------
+
+    # =================================
     # AI SENTIMENT ANALYSIS
-    # --------------------------------
+    # =================================
 
     def analyze_sentiment(self, feedback):
 
         prompt = f"""
-You are a customer feedback sentiment analysis assistant.
+        You are a customer feedback sentiment analysis assistant.
 
-Analyze the following customer review.
+        Analyze the following customer review.
 
-Customer review:
-{feedback}
+        Customer review:
+        {feedback}
 
-Classify the review into exactly one category:
-Positive, Neutral, or Negative.
+        Classify the review into exactly one category:
 
-Rules:
-- Positive: Customer expresses satisfaction.
-- Neutral: Customer expresses mixed or unclear feelings.
-- Negative: Customer expresses dissatisfaction or complaints.
+        Positive:
+        Customer expresses satisfaction, appreciation,
+        or a positive experience.
 
-Return ONLY valid JSON in this format:
+        Neutral:
+        Customer expresses mixed, unclear,
+        or factual opinions.
 
-{{
-    "sentiment": "Positive",
-    "reason": "Short explanation of the classification"
-}}
-"""
+        Negative:
+        Customer expresses dissatisfaction,
+        frustration, or complaints.
 
-        payload = {
-            "model": self.OLLAMA_MODEL,
-            "prompt": prompt,
-            "stream": False,
-            "format": "json",
-            "options": {
-                "temperature": 0
-            }
-        }
+        Rules:
+        - Do not invent customer experiences.
+        - Base your classification on the actual review.
+        - Provide a short explanation.
+        """
 
         try:
 
-            request = urllib.request.Request(
-                self.OLLAMA_URL,
-                data=json.dumps(payload).encode("utf-8"),
-                headers={
-                    "Content-Type": "application/json"
-                },
-                method="POST"
-            )
-
-            with urllib.request.urlopen(
-                request,
-                timeout=60
-            ) as response:
-
-                result = json.loads(
-                    response.read().decode("utf-8")
-                )
-
-            ai_response = json.loads(
-                result.get("response", "{}")
-            )
-
-            sentiment = ai_response.get(
-                "sentiment", ""
-            ).capitalize()
-
-            reason = ai_response.get(
-                "reason", ""
-            )
-
-            if sentiment not in [
-                "Positive",
-                "Neutral",
-                "Negative"
-            ]:
-                raise ValueError(
-                    "Invalid sentiment returned by AI."
-                )
+            result = self.llm.invoke(prompt)
 
             return {
-                "sentiment": sentiment,
-                "sentiment_reason": reason
+                "sentiment": result.sentiment,
+                "sentiment_reason": result.reason
             }
 
         except Exception as error:
@@ -162,9 +169,10 @@ Return ONLY valid JSON in this format:
                 "sentiment_reason": "AI analysis unavailable."
             }
 
-    # --------------------------------
-    # SUBMIT FEEDBACK
-    # --------------------------------
+
+    # =================================
+    # SUBMIT CUSTOMER FEEDBACK
+    # =================================
 
     def submit_feedback(
         self,
@@ -176,21 +184,25 @@ Return ONLY valid JSON in this format:
     ):
 
         if not customer_name.strip():
+
             raise ValueError(
                 "Customer name is required."
             )
 
         if not 1 <= support_rating <= 5:
+
             raise ValueError(
                 "Support rating must be between 1 and 5."
             )
 
         if not 1 <= delivery_rating <= 5:
+
             raise ValueError(
                 "Delivery rating must be between 1 and 5."
             )
 
         if not feedback.strip():
+
             raise ValueError(
                 "Feedback cannot be empty."
             )
@@ -258,9 +270,10 @@ Return ONLY valid JSON in this format:
             "message": "Feedback submitted successfully."
         }
 
-    # --------------------------------
-    # GET ALL FEEDBACK
-    # --------------------------------
+
+    # =================================
+    # GET ALL CUSTOMER FEEDBACK
+    # =================================
 
     def get_all_feedback(self):
 
@@ -284,9 +297,10 @@ Return ONLY valid JSON in this format:
         finally:
             connection.close()
 
-    # --------------------------------
-    # FEEDBACK STATISTICS
-    # --------------------------------
+
+    # =================================
+    # FEEDBACK RATING STATISTICS
+    # =================================
 
     def get_feedback_stats(self):
 
@@ -308,10 +322,12 @@ Return ONLY valid JSON in this format:
 
             return {
                 "total_reviews": row["total_reviews"],
+
                 "average_support_rating": round(
                     row["average_support_rating"] or 0,
                     2
                 ),
+
                 "average_delivery_rating": round(
                     row["average_delivery_rating"] or 0,
                     2
@@ -321,9 +337,10 @@ Return ONLY valid JSON in this format:
         finally:
             connection.close()
 
-    # --------------------------------
+
+    # =================================
     # AI SENTIMENT STATISTICS
-    # --------------------------------
+    # =================================
 
     def get_sentiment_stats(self):
 
@@ -335,6 +352,7 @@ Return ONLY valid JSON in this format:
 
             cursor.execute("""
                 SELECT
+
                     COUNT(*) AS total_analyzed,
 
                     SUM(
@@ -368,6 +386,7 @@ Return ONLY valid JSON in this format:
                     + (row["neutral"] or 0)
                     + (row["negative"] or 0)
                 ),
+
                 "positive": row["positive"] or 0,
                 "neutral": row["neutral"] or 0,
                 "negative": row["negative"] or 0,
@@ -376,16 +395,18 @@ Return ONLY valid JSON in this format:
 
         finally:
             connection.close()
-    
-    # --------------------------------
+
+
+    # =================================
     # ANALYZE PENDING HISTORICAL REVIEWS
-    # --------------------------------
+    # =================================
 
     def analyze_pending_feedback(self):
 
         connection = get_connection()
 
         try:
+
             cursor = connection.cursor()
 
             cursor.execute("""
@@ -396,7 +417,8 @@ Return ONLY valid JSON in this format:
             """)
 
             pending_reviews = [
-                dict(row) for row in cursor.fetchall()
+                dict(row)
+                for row in cursor.fetchall()
             ]
 
         finally:
@@ -412,12 +434,14 @@ Return ONLY valid JSON in this format:
             )
 
             if result["sentiment"] == "Pending":
+
                 failed += 1
                 continue
 
             connection = get_connection()
 
             try:
+
                 cursor = connection.cursor()
 
                 cursor.execute("""
@@ -432,6 +456,7 @@ Return ONLY valid JSON in this format:
                 ))
 
                 connection.commit()
+
                 analyzed += 1
 
             finally:
@@ -446,7 +471,8 @@ Return ONLY valid JSON in this format:
         }
 
 
-
-# Global feedback agent instance
+# =====================================
+# GLOBAL FEEDBACK AGENT INSTANCE
+# =====================================
 
 feedback_agent = FeedbackAgent()

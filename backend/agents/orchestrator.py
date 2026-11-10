@@ -23,6 +23,7 @@ class SupportState(TypedDict, total=False):
 
 
 # 2. Classify customer intent
+
 def classify_intent(state: SupportState):
 
     message = state["message"].lower()
@@ -42,14 +43,23 @@ def classify_intent(state: SupportState):
     ticket_keywords = [
         "create a support ticket",
         "create support ticket",
+        "create a ticket",
         "create ticket",
+        "raise a support ticket",
+        "raise support ticket",
         "raise a ticket",
         "raise ticket",
+        "open a support ticket",
+        "open support ticket",
         "open a ticket",
         "open ticket",
+        "i want to raise",
+        "i want to create a ticket",
         "register complaint",
         "file a complaint",
-        "submit a complaint"
+        "submit a complaint",
+        "report a problem",
+        "report an issue"
     ]
 
     if any(word in message for word in ticket_keywords):
@@ -59,6 +69,8 @@ def classify_intent(state: SupportState):
     elif any(word in message for word in [
         "track order",
         "order status",
+        "status of my order",
+        "check the status of my order",
         "where is my order",
         "delivery status",
         "tracking"
@@ -92,8 +104,15 @@ def analyze_sentiment(state: SupportState):
         state["message"]
     )
 
-    return {"sentiment": result}
+    print("DEBUG SENTIMENT RESULT:", repr(result))
+    print("DEBUG SENTIMENT TYPE:", type(result))
 
+    if not isinstance(result, dict):
+        raise ValueError(
+            f"Sentiment agent must return a dictionary, got {type(result)}"
+        )
+
+    return {"sentiment": result}
 
 # 4. Knowledge Agent
 def knowledge_node(state: SupportState):

@@ -1,14 +1,20 @@
 
+import os
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional, Literal
 
-from database.connection import get_connection
+from database.connection import get_connection, initialize_database
 from agents.orchestrator import support_graph
 from agents.ticket_agent import ticket_agent
 from agents.feedback_agent import feedback_agent
 
+
+# =====================================
+# FASTAPI APPLICATION
+# =====================================
 
 app = FastAPI(
     title="SupportIQ AI",
@@ -16,14 +22,28 @@ app = FastAPI(
     version="2.3.0"
 )
 
-
+@app.on_event("startup")
+def startup_event():
+    initialize_database()
+    print("SupportIQ AI database initialized successfully!")
+    
 # =====================================
 # CORS CONFIGURATION
 # =====================================
 
+FRONTEND_URL = os.getenv("FRONTEND_URL", "")
+
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+if FRONTEND_URL:
+    ALLOWED_ORIGINS.append(FRONTEND_URL)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -395,6 +415,11 @@ def get_sentiment_stats():
 
     except Exception as error:
         raise HTTPException(500, detail=str(error))
+
+
+# =====================================
+# ANALYZE PENDING FEEDBACK
+# =====================================
 
 @app.post("/feedback/analyze-pending")
 def analyze_pending_feedback():

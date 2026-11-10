@@ -1,7 +1,11 @@
 
 from langchain_ollama import ChatOllama
 
-from config import OLLAMA_MODEL, OLLAMA_BASE_URL
+from config import (
+    OLLAMA_MODEL,
+    OLLAMA_BASE_URL,
+    OLLAMA_PROXY_TOKEN
+)
 from rag.knowledge_base import knowledge_base
 
 
@@ -12,7 +16,12 @@ class KnowledgeAgent:
         self.llm = ChatOllama(
             model=OLLAMA_MODEL,
             base_url=OLLAMA_BASE_URL,
-            temperature=0.1
+            temperature=0.1,
+            client_kwargs={
+                "headers": {
+                    "Authorization": f"Bearer {OLLAMA_PROXY_TOKEN}"
+                }
+            }
         )
 
     def answer(self, question: str):

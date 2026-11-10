@@ -1,4 +1,5 @@
 
+import os
 from pathlib import Path
 
 from langchain_chroma import Chroma
@@ -6,11 +7,12 @@ from langchain_ollama import OllamaEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 
+from config import OLLAMA_BASE_URL, OLLAMA_PROXY_TOKEN
+
 
 BASE_DIR = Path(__file__).resolve().parent
 
 DOCUMENTS_DIR = BASE_DIR / "documents"
-
 DB_DIR = BASE_DIR / "chroma_db"
 
 
@@ -20,7 +22,12 @@ class KnowledgeBase:
 
         self.embeddings = OllamaEmbeddings(
             model="nomic-embed-text",
-            base_url="http://localhost:11434"
+            base_url=OLLAMA_BASE_URL,
+            client_kwargs={
+                "headers": {
+                    "Authorization": f"Bearer {OLLAMA_PROXY_TOKEN}"
+                }
+            }
         )
 
         self.vector_store = None
