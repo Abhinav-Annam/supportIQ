@@ -1,5 +1,4 @@
-
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 // Get all tickets
 export const getAllTickets = async () => {
@@ -15,7 +14,7 @@ export const getAllTickets = async () => {
 // Get individual ticket
 export const getTicket = async (ticketId) => {
   const response = await fetch(
-    `${API_URL}/tickets/${ticketId}`
+    `${API_URL}/tickets/${encodeURIComponent(ticketId)}`
   );
 
   if (!response.ok) {
@@ -28,7 +27,7 @@ export const getTicket = async (ticketId) => {
 // Update ticket
 export const updateTicket = async (ticketId, data) => {
   const response = await fetch(
-    `${API_URL}/tickets/${ticketId}`,
+    `${API_URL}/tickets/${encodeURIComponent(ticketId)}`,
     {
       method: "PUT",
       headers: {

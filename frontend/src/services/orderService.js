@@ -1,5 +1,4 @@
-
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 export const getAllOrders = async () => {
   const response = await fetch(`${API_URL}/orders`);
@@ -8,7 +7,7 @@ export const getAllOrders = async () => {
     throw new Error("Unable to fetch orders.");
   }
 
-  return await response.json();
+  return response.json();
 };
 
 export const getOrderById = async (orderId) => {
@@ -24,5 +23,5 @@ export const getOrderById = async (orderId) => {
     throw new Error("Unable to fetch order details.");
   }
 
-  return await response.json();
+  return response.json();
 };
